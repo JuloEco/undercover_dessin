@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gribouillage Suspect</title>
+    <script src="https://cdn.socketio.org/4.7.2/socketio.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 20px; display: flex; flex-direction: column; align-items: center; }
+        #login-box, #game-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 900px; width: 100%; }
+        #game-box { display: none; }
+        .flex-container { display: flex; gap: 20px; margin-top: 15px; }
+        canvas { border: 2px solid #333; background: #fff; cursor: crosshair; border-radius: 4px; }
+        #chat-area { width: 300px; display: flex; flex-direction: column; height: 500px; border: 1px solid #ccc; background: #fafafa; }
+        #messages { flex-grow: 1; overflow-y: auto; padding: 10px; font-size: 14px; }
+        #chat-input { display: flex; }
+        #chat-input input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; }
+        #word-display { font-size: 20px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+        .player-tag { display: inline-block; padding: 5px 10px; margin: 5px; border-radius: 15px; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="login-box">
+        <h2>Rejoindre un salon</h2>
+        <input type="text" id="username" placeholder="Votre Pseudo" required>
+        <input type="text" id="room" placeholder="Nom du Salon" required>
+        <button onclick="joinRoom()">Rejoindre</button>
+    </div>
+
+    <div id="game-box">
+        <div id="word-display">Attente du lancement...</div>
+        <div id="players-list"></div>
+        <button id="start-btn" onclick="startGame()">Lancer la partie</button>
+        
+        <div class="flex-container">
+            <canvas id="paintCanvas" width="550" height="500"></canvas>
+            
+            <div id="chat-area">
+                <div id="messages"></div>
+                <div id="chat-input">
+                    <input type="text" id="msg-text" placeholder="Discutez / Votez...">
+                    <button onclick="sendMessage()">Envoyer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let myColor = '#000000';
+        let isDrawing = false;
+        let prevX = 0, prevY = 0;
+        let currentRoom = '';
+
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+
+        function joinRoom() {
+            const username = document.getElementById('username').value;
+            currentRoom = document.getElementById('room').value;
+            if(username && currentRoom) {
+                socket.emit('join', {username: username, room: currentRoom});
+                document.getElementById('login-box').style.display = 'none';
+                document.getElementById('game-box').style.display = 'block';
+            }
+        }
+
+        function startGame() {
+            socket.emit('start_game', {room: currentRoom});
+        }
+
+        socket.on('room_state', function(data) {
+            const listDiv = document.getElementById('players-list');
+            listDiv.innerHTML = '<strong>Joueurs connectés :</strong> ';
+            data.players.forEach(p => {
+                listDiv.innerHTML += `<span class="player-tag" style="background:${p.color}">${p.username}</span>`;
+            });
+        });
+
+        socket.on('game_init', function(data) {
+            myColor = data.color;
+            document.getElementById('word-display').innerHTML = `Votre Mot Secret : <span style="color:${myColor}">${data.word}</span>`;
+            document.getElementById('start-btn').style.display = 'none';
+            // Nettoyer le canvas pour la nouvelle partie
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // --- GESTION DU DESSIN (SOURIS) ---
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            [prevX, prevY] = [e.offsetX, e.offsetY];
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const x = e.offsetX;
+            const y = e.offsetY;
+
+            // Dessiner localement
+            drawOnCanvas(prevX, prevY, x, y, myColor);
+
+            // Envoyer le trait aux autres
+            socket.emit('draw', {room: currentRoom, x: x, y: y, prevX: prevX, prevY: prevY});
+            [prevX, prevY] = [x, y];
+        });
+
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        function drawOnCanvas(pX, pY, cX, cY, color) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.moveTo(pX, pY);
+            ctx.lineTo(cX, cY);
+            ctx.stroke();
+        }
+
+        socket.on('draw_response', function(data) {
+            drawOnCanvas(data.prevX, data.prevY, data.x, data.y, data.color);
+        });
+
+        // --- GESTION DU CHAT ---
+        function sendMessage() {
+            const input = document.getElementById('msg-text');
+            if(input.value.trim() !== "") {
+                socket.emit('message', {room: currentRoom, msg: input.value});
+                input.value = '';
+            }
+        }
+
+        socket.on('chat_msg', function(data) {
+            const msgDiv = document.getElementById('messages');
+            msgDiv.innerHTML += `<div><strong>${data.username}:</strong> ${data.msg}</div>`;
+            msgDiv.scrollTop = msgDiv.scrollHeight;
+        });
+
+        socket.on('error', function(data) { alert(data.msg); });
+    </script>
+</body>
+</html>
