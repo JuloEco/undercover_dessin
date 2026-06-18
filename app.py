@@ -68,7 +68,7 @@ def create_room(room_id):
 
 @app.route('/')
 def index():
-    return render_template('undercover.html')
+    return render_template('index.html')
 
 
 @app.route('/room/<room_id>')
