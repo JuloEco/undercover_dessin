@@ -28,7 +28,13 @@
       color: var(--text);
       font-family: 'Inter', sans-serif;
       overflow: auto;
-      
+      -webkit-overflow-scrolling: touch; 
+    /* Autorise le défilement vertical si le contenu dépasse */
+    overflow-y: auto; 
+    /* Évite les débordements horizontaux parasites */
+    overflow-x: hidden; 
+    /* Utilise la vraie hauteur visible sur mobile */
+    min-height: -webkit-fill-available;
     }
 
     /* ── SCREEN SYSTEM ──────────────────────────────────────────────── */
