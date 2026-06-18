@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suspekt — Salon {{ room_id }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a22;
+      --surface2: #22222e;
+      --border: #2e2e3e;
+      --text: #e8e8f0;
+      --muted: #7a7a9a;
+      --accent: #ff4d6d;
+      --accent2: #7c5cbf;
+      --green: #4ade80;
+      --chalk: #f0ede6;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── SCREEN SYSTEM ──────────────────────────────────────────────── */
+    .screen { display: none; height: 100vh; }
+    .screen.active { display: flex; }
+
+    /* ── LOBBY ──────────────────────────────────────────────────────── */
+    #screen-lobby {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    .lobby-header { text-align: center; }
+    .lobby-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 4rem;
+      color: var(--chalk);
+      text-shadow: 3px 3px 0 var(--accent);
+      letter-spacing: 0.08em;
+    }
+    .room-code {
+      font-family: 'Space Mono', monospace;
+      font-size: 2.2rem;
+      color: var(--accent);
+      letter-spacing: 0.4em;
+      margin-top: 0.3rem;
+    }
+    .room-code-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .lobby-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .lobby-players-title {
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    #player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 80px;
+    }
+
+    .player-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .player-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .host-badge {
+      font-size: 0.65rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+      padding: 0.15rem 0.4rem;
+      letter-spacing: 0.05em;
+      margin-left: auto;
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.1em;
+      padding: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 1.2rem;
+    }
+    .btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn.green { background: var(--green); color: #000; }
+    .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+    .lobby-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    /* ── GAME LAYOUT ────────────────────────────────────────────────── */
+    #screen-game {
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      gap: 1rem;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem;
+      color: var(--chalk);
+      letter-spacing: 0.1em;
+    }
+
+    .word-reveal {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem;
+      text-align: center;
+    }
+    .word-reveal-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+    .word-reveal-word {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.05rem;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .turn-indicator {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .turn-indicator.my-turn {
+      border-color: var(--accent);
+      background: rgba(255,77,109,0.1);
+    }
+    .turn-name {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 0.95rem;
+      margin-top: 0.2rem;
+    }
+
+    .players-section { flex: 1; }
+    .section-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar-player {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .sidebar-player.eliminated { opacity: 0.3; text-decoration: line-through; }
+    .sidebar-player .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .drawing-badge {
+      font-size: 0.6rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 3px;
+      padding: 0.1rem 0.3rem;
+      margin-left: auto;
+    }
+
+    /* Tools */
+    .tools {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .tool-row {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .tool-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.75rem;
+      padding: 0.4rem 0.6rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Inter', sans-serif;
+      flex: 1;
+      text-align: center;
+    }
+    .tool-btn:hover { border-color: var(--accent); }
+    .tool-btn.active { border-color: var(--accent); background: rgba(255,77,109,0.1); color: var(--accent); }
+
+    .size-slider {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .end-turn-btn {
+      background: var(--accent2);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .end-turn-btn:hover { filter: brightness(1.15); }
+    .end-turn-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Canvas area */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .canvas-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .canvas-bar .code {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    #game-canvas {
+      display: block;
+      cursor: crosshair;
+      background: #181820;
+      flex: 1;
+      width: 100%;
+    }
+    #game-canvas.spectate { cursor: default; }
+
+    /* ── VOTING ──────────────────────────────────────────────────────── */
+    #screen-voting {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .voting-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3rem;
+      color: var(--chalk);
+      text-shadow: 3px 3px 0 var(--accent);
+      text-align: center;
+    }
+
+    .voting-canvas-wrap {
+      width: 100%;
+      max-width: 700px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #vote-canvas { display: block; width: 100%; background: #181820; }
+
+    .vote-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.8rem;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .vote-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .vote-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .vote-card.voted { border-color: var(--accent); background: rgba(255,77,109,0.1); }
+    .vote-card.eliminated { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+    .vote-card .vc-color {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      margin: 0 auto 0.5rem;
+    }
+    .vote-card .vc-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .vote-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+    .vote-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.4s;
+      border-radius: 2px;
+    }
+    .vote-count {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .vote-progress {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* ── RESULTS ──────────────────────────────────────────────────────── */
+    #screen-results {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .result-banner {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      text-align: center;
+      line-height: 1.1;
+    }
+    .result-banner.win { color: var(--green); text-shadow: 3px 3px 0 rgba(74,222,128,0.3); }
+    .result-banner.lose { color: var(--accent); text-shadow: 3px 3px 0 rgba(255,77,109,0.3); }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .undercover-reveal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .uc-dot {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+    }
+    .uc-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .word-compare {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .word-box {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      text-align: center;
+    }
+    .word-box-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+    .word-box-word { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; margin-top: 0.2rem; }
+    .word-box-word.uc { color: var(--accent); }
+
+    .result-canvas-wrap {
+      width: 100%;
+      max-width: 600px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #result-canvas { display: block; width: 100%; background: #181820; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      max-width: 600px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 0.3rem 0.7rem;
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── TOAST ──────────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.85rem;
+      font-family: 'Space Mono', monospace;
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+      white-space: nowrap;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(-10px); } }
+
+    /* ── ELIMINATED OVERLAY ─────────────────────────────────────────── */
+    #elim-overlay {
+      position: fixed; inset: 0;
+      background: rgba(255,77,109,0.15);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    #elim-overlay.show { display: flex; }
+    .elim-card {
+      background: var(--surface);
+      border: 2px solid var(--accent);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      max-width: 360px;
+    }
+    .elim-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3rem;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="screen-lobby" class="screen active">
+  <div class="lobby-header">
+    <div class="lobby-title">Suspekt</div>
+    <div class="room-code-label">Code du salon</div>
+    <div class="room-code" id="display-room-code">{{ room_id }}</div>
+  </div>
+
+  <div class="lobby-card">
+    <div class="lobby-players-title">Joueurs connectés</div>
+    <div id="player-list"></div>
+    <button class="btn" id="start-btn" onclick="startGame()" disabled>Démarrer la partie</button>
+    <div class="lobby-hint" id="lobby-hint">En attente de joueurs... (3 min.)</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="sidebar">
+    <div class="sidebar-logo">Suspekt</div>
+
+    <div class="word-reveal">
+      <div class="word-reveal-label">Ton mot</div>
+      <div class="word-reveal-word" id="my-word">—</div>
+    </div>
+
+    <div class="turn-indicator" id="turn-box">
+      <div style="font-size:0.7rem;color:var(--muted);">Tour de</div>
+      <div class="turn-name" id="turn-name">—</div>
+    </div>
+
+    <div class="players-section">
+      <div class="section-label">Joueurs</div>
+      <div id="sidebar-players"></div>
+    </div>
+
+    <div class="tools">
+      <div class="section-label">Outils</div>
+      <div class="tool-row">
+        <div class="tool-btn active" id="tool-pen" onclick="setTool('pen')">✏️ Crayon</div>
+        <div class="tool-btn" id="tool-eraser" onclick="setTool('eraser')">🧹 Gomme</div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:0.2rem;">Taille</div>
+        <input type="range" class="size-slider" min="1" max="30" value="4" id="size-slider" />
+      </div>
+      <button class="end-turn-btn" id="end-turn-btn" onclick="endTurn()" disabled>
+        Fin de mon tour →
+      </button>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-bar">
+      <span style="font-weight:600;">Canvas collaboratif</span>
+      <span class="code">Salon : {{ room_id }}</span>
+      <span id="canvas-status" style="margin-left:auto;font-size:0.75rem;color:var(--muted);"></span>
+    </div>
+    <canvas id="game-canvas"></canvas>
+  </div>
+</div>
+
+<!-- VOTING -->
+<div id="screen-voting" class="screen">
+  <div class="voting-title">Qui est l'imposteur ?</div>
+  <div class="vote-progress" id="vote-progress">0 / 0 votes</div>
+
+  <div class="voting-canvas-wrap">
+    <canvas id="vote-canvas" height="300"></canvas>
+  </div>
+
+  <div class="vote-grid" id="vote-grid"></div>
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+  <div class="result-banner" id="result-banner">—</div>
+
+  <div class="result-card">
+    <div class="undercover-reveal">
+      <div class="uc-dot" id="uc-dot"></div>
+      <div class="uc-name" id="uc-name"></div>
+      <div style="font-size:0.8rem;color:var(--muted);">était l'Undercover</div>
+    </div>
+    <div class="word-compare">
+      <div class="word-box">
+        <div class="word-box-label">Civils</div>
+        <div class="word-box-word" id="word-civilians">—</div>
+      </div>
+      <div class="word-box">
+        <div class="word-box-label">Undercover</div>
+        <div class="word-box-word uc" id="word-undercover">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-canvas-wrap">
+    <canvas id="result-canvas" height="360"></canvas>
+  </div>
+
+  <div class="legend" id="result-legend"></div>
+
+  <button class="btn" id="play-again-btn" onclick="playAgain()" style="max-width:300px;display:none;">
+    Rejouer
+  </button>
+</div>
+
+<!-- ELIMINATED OVERLAY -->
+<div id="elim-overlay">
+  <div class="elim-card">
+    <div class="elim-title">Éliminé !</div>
+    <div id="elim-name" style="font-size:1.1rem;margin-top:0.5rem;"></div>
+    <div style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem;">n'était pas l'undercover.<br>La partie continue…</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const ROOM_ID = "{{ room_id }}";
+const socket = io();
+
+let myColor = null;
+let myNickname = null;
+let mySid = null;
+let isHost = false;
+let allPlayers = [];
+let myWord = null;
+let isMyTurn = false;
+let currentTool = 'pen';
+let brushSize = 4;
+let allStrokes = [];
+let hostSid = null;
+
+// Drawing state
+let isDrawing = false;
+let currentPoints = [];
+const gameCanvas = document.getElementById('game-canvas');
+const gameCtx = gameCanvas.getContext('2d');
+
+// ── Screen management ──────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, duration = 3000) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), duration);
+}
+
+// ── Lobby ──────────────────────────────────────────────────────────────────
+function renderLobby(players, host) {
+  hostSid = host;
+  isHost = (mySid === host);
+  allPlayers = players;
+
+  const list = document.getElementById('player-list');
+  list.innerHTML = '';
+  players.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'player-chip';
+    div.innerHTML = `
+      <div class="player-dot" style="background:${p.color}"></div>
+      <span>${p.nickname}</span>
+      ${p.sid === host ? '<span class="host-badge">Chef</span>' : ''}
+    `;
+    list.appendChild(div);
+  });
+
+  const startBtn = document.getElementById('start-btn');
+  const hint = document.getElementById('lobby-hint');
+  if (isHost) {
+    startBtn.disabled = players.length < 3;
+    hint.textContent = players.length < 3
+      ? `En attente de joueurs... (${players.length}/3 min.)`
+      : `${players.length} joueur${players.length>1?'s':''} — prêt à démarrer !`;
+    startBtn.style.display = '';
+  } else {
+    startBtn.style.display = 'none';
+    hint.textContent = 'En attente que le chef démarre...';
+  }
+}
+
+// ── Sidebar players ────────────────────────────────────────────────────────
+function renderSidebarPlayers(players, currentSid) {
+  const el = document.getElementById('sidebar-players');
+  el.innerHTML = '';
+  players.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'sidebar-player' + (p.eliminated ? ' eliminated' : '');
+    div.innerHTML = `
+      <div class="dot" style="background:${p.color}"></div>
+      <span>${p.nickname}</span>
+      ${p.sid === currentSid ? '<span class="drawing-badge">✏️</span>' : ''}
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ── Canvas setup ───────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const area = document.querySelector('.canvas-area');
+  const bar = document.querySelector('.canvas-bar');
+  gameCanvas.width = area.clientWidth;
+  gameCanvas.height = area.clientHeight - bar.offsetHeight;
+  redrawAll();
+}
+
+function redrawAll() {
+  gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  for (const stroke of allStrokes) {
+    drawStroke(gameCtx, stroke);
+  }
+}
+
+function drawStroke(ctx, stroke) {
+  if (!stroke.points || stroke.points.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = stroke.eraser ? '#181820' : stroke.color;
+  ctx.lineWidth = stroke.size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+  for (let i = 1; i < stroke.points.length; i++) {
+    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function getCanvasPos(e) {
+  const rect = gameCanvas.getBoundingClientRect();
+  const scaleX = gameCanvas.width / rect.width;
+  const scaleY = gameCanvas.height / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
+}
+
+gameCanvas.addEventListener('mousedown', e => {
+  if (!isMyTurn) return;
+  isDrawing = true;
+  currentPoints = [getCanvasPos(e)];
+});
+gameCanvas.addEventListener('mousemove', e => {
+  if (!isDrawing || !isMyTurn) return;
+  const pos = getCanvasPos(e);
+  currentPoints.push(pos);
+  // Live preview
+  const previewStroke = {
+    points: currentPoints,
+    color: myColor,
+    size: brushSize,
+    eraser: currentTool === 'eraser',
+  };
+  redrawAll();
+  drawStroke(gameCtx, previewStroke);
+});
+gameCanvas.addEventListener('mouseup', e => {
+  if (!isDrawing || !isMyTurn) return;
+  isDrawing = false;
+  if (currentPoints.length > 0) {
+    const stroke = {
+      points: currentPoints,
+      color: myColor,
+      size: brushSize,
+      eraser: currentTool === 'eraser',
+      nickname: myNickname,
+      player_sid: mySid,
+    };
+    allStrokes.push(stroke);
+    redrawAll();
+    socket.emit('draw_stroke', { room_id: ROOM_ID, points: currentPoints, size: brushSize, eraser: currentTool === 'eraser' });
+  }
+  currentPoints = [];
+});
+gameCanvas.addEventListener('mouseleave', () => { isDrawing = false; });
+
+// Touch
+gameCanvas.addEventListener('touchstart', e => { e.preventDefault(); if (!isMyTurn) return; isDrawing = true; currentPoints = [getCanvasPos(e)]; }, { passive: false });
+gameCanvas.addEventListener('touchmove', e => { e.preventDefault(); if (!isDrawing || !isMyTurn) return; const pos = getCanvasPos(e); currentPoints.push(pos); const ps = { points: currentPoints, color: myColor, size: brushSize, eraser: currentTool === 'eraser' }; redrawAll(); drawStroke(gameCtx, ps); }, { passive: false });
+gameCanvas.addEventListener('touchend', e => { e.preventDefault(); if (!isDrawing || !isMyTurn) return; isDrawing = false; if (currentPoints.length > 0) { const s = { points: currentPoints, color: myColor, size: brushSize, eraser: currentTool === 'eraser', nickname: myNickname, player_sid: mySid }; allStrokes.push(s); redrawAll(); socket.emit('draw_stroke', { room_id: ROOM_ID, points: currentPoints, size: brushSize, eraser: currentTool === 'eraser' }); } currentPoints = []; }, { passive: false });
+
+// ── Tools ──────────────────────────────────────────────────────────────────
+function setTool(tool) {
+  currentTool = tool;
+  document.getElementById('tool-pen').classList.toggle('active', tool === 'pen');
+  document.getElementById('tool-eraser').classList.toggle('active', tool === 'eraser');
+}
+
+document.getElementById('size-slider').addEventListener('input', e => {
+  brushSize = parseInt(e.target.value);
+});
+
+// ── Game actions ───────────────────────────────────────────────────────────
+function startGame() {
+  socket.emit('start_game', { room: ROOM_ID, room_id: ROOM_ID });
+}
+
+function endTurn() {
+  socket.emit('end_turn', { room_id: ROOM_ID });
+  isMyTurn = false;
+  document.getElementById('end-turn-btn').disabled = true;
+  gameCanvas.classList.add('spectate');
+  document.getElementById('turn-box').classList.remove('my-turn');
+}
+
+function castVote(votedSid) {
+  socket.emit('cast_vote', { room_id: ROOM_ID, voted_sid: votedSid });
+  document.querySelectorAll('.vote-card').forEach(c => c.classList.remove('voted'));
+  document.querySelector(`.vote-card[data-sid="${votedSid}"]`)?.classList.add('voted');
+}
+
+function playAgain() {
+  socket.emit('play_again', { room_id: ROOM_ID });
+}
+
+// ── Replay canvas ──────────────────────────────────────────────────────────
+function renderReplayCanvas(canvasEl, strokes) {
+  const ctx = canvasEl.getContext('2d');
+  canvasEl.width = canvasEl.parentElement.clientWidth;
+  ctx.fillStyle = '#181820';
+  ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+
+  // Scale strokes from game canvas coords
+  const scaleX = canvasEl.width / (gameCanvas.width || canvasEl.width);
+  const scaleY = canvasEl.height / (gameCanvas.height || canvasEl.height);
+
+  for (const stroke of strokes) {
+    if (!stroke.points || stroke.points.length === 0) continue;
+    ctx.save();
+    ctx.strokeStyle = stroke.eraser ? '#181820' : stroke.color;
+    ctx.lineWidth = Math.max(1, stroke.size * Math.min(scaleX, scaleY));
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x * scaleX, stroke.points[0].y * scaleY);
+    for (let i = 1; i < stroke.points.length; i++) {
+      ctx.lineTo(stroke.points[i].x * scaleX, stroke.points[i].y * scaleY);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── Socket events ──────────────────────────────────────────────────────────
+socket.on('connect', () => {
+  mySid = socket.id;
+  const params = new URLSearchParams(window.location.search);
+  myNickname = params.get('nickname') || 'Joueur';
+
+  // On demande l'enregistrement officiel dans le salon avec notre socket stable
+  socket.emit('register_player', { 
+    nickname: myNickname, 
+    room_id: ROOM_ID 
+  });
+});
+
+// On écoute le retour du serveur pour savoir si on est Host ou non
+socket.on('registration_success', (data) => {
+  myColor = data.player.color;
+  isHost = data.is_host;
+});
+socket.on('joined_room', data => {
+  myColor = data.player.color;
+  myNickname = data.player.nickname;
+  mySid = data.player.sid;
+});
+
+socket.on('room_update', data => {
+  hostSid = data.host;
+  isHost = (mySid === data.host);
+  allPlayers = data.players;
+  renderLobby(data.players, data.host);
+  if (data.phase !== 'lobby') {
+    // Already in game
+    showScreen('screen-game');
+    resizeCanvas();
+  }
+});
+
+socket.on('room_created', data => {
+  myColor = data.player.color;
+  myNickname = data.player.nickname;
+  mySid = data.player.sid;
+  isHost = true;
+});
+
+socket.on('player_left', data => {
+  toast(`${data.nickname} a quitté le salon`);
+  allPlayers = data.players;
+  renderLobby(data.players, data.new_host);
+});
+
+socket.on('your_word', data => {
+  myWord = data.word;
+  document.getElementById('my-word').textContent = data.word;
+});
+
+socket.on('game_started', data => {
+  showScreen('screen-game');
+  setTimeout(resizeCanvas, 50);
+  window.addEventListener('resize', resizeCanvas);
+  toast('La partie commence !');
+});
+
+socket.on('your_turn', data => {
+  const isMe = (data.sid === mySid);
+  isMyTurn = isMe;
+
+  const btn = document.getElementById('end-turn-btn');
+  btn.disabled = !isMe;
+  gameCanvas.classList.toggle('spectate', !isMe);
+
+  const box = document.getElementById('turn-box');
+  box.classList.toggle('my-turn', isMe);
+  document.getElementById('turn-name').textContent = isMe ? 'C\'est ton tour !' : data.nickname;
+  document.getElementById('canvas-status').textContent =
+    `Tour ${data.position}/${data.total} — ${isMe ? 'À toi de dessiner !' : data.nickname + ' dessine...'}`;
+
+  if (isMe) toast('🎨 C\'est ton tour de dessiner !');
+
+  renderSidebarPlayers(allPlayers, data.sid);
+});
+
+socket.on('new_stroke', stroke => {
+  allStrokes.push(stroke);
+  drawStroke(gameCtx, stroke);
+});
+
+socket.on('start_voting', data => {
+  // Transition to voting
+  showScreen('screen-voting');
+  allStrokes = data.strokes || allStrokes;
+
+  // Render vote canvas (replay of full drawing)
+  setTimeout(() => {
+    renderReplayCanvas(document.getElementById('vote-canvas'), allStrokes);
+  }, 100);
+
+  // Render vote cards
+  const grid = document.getElementById('vote-grid');
+  grid.innerHTML = '';
+  data.players.forEach(p => {
+    if (p.eliminated) return;
+    const card = document.createElement('div');
+    card.className = 'vote-card' + (p.eliminated ? ' eliminated' : '');
+    card.dataset.sid = p.sid;
+    const isSelf = p.sid === mySid;
+    card.innerHTML = `
+      <div class="vc-color" style="background:${p.color}"></div>
+      <div class="vc-name">${p.nickname}${isSelf ? ' (toi)' : ''}</div>
+      <div class="vote-bar"><div class="vote-bar-fill" id="bar-${p.sid}" style="width:0%"></div></div>
+      <div class="vote-count" id="vc-${p.sid}">0 vote</div>
+    `;
+    if (!isSelf) card.onclick = () => castVote(p.sid);
+    else card.style.opacity = '0.5';
+    grid.appendChild(card);
+  });
+
+  document.getElementById('vote-progress').textContent = '0 / ? votes';
+  toast('Votez pour l\'imposteur !');
+});
+
+socket.on('vote_update', data => {
+  document.getElementById('vote-progress').textContent =
+    `${data.votes_cast} / ${data.total_voters} votes`;
+
+  const totalVoters = data.total_voters;
+  for (const [name, count] of Object.entries(data.vote_counts)) {
+    // Find card by name
+    document.querySelectorAll('.vote-card').forEach(card => {
+      const nameEl = card.querySelector('.vc-name');
+      const sid = card.dataset.sid;
+      const playerName = nameEl?.textContent.replace(' (toi)', '');
+      if (playerName === name) {
+        const bar = document.getElementById(`bar-${sid}`);
+        const vc = document.getElementById(`vc-${sid}`);
+        const pct = totalVoters > 0 ? Math.round(count / totalVoters * 100) : 0;
+        if (bar) bar.style.width = pct + '%';
+        if (vc) vc.textContent = `${count} vote${count > 1 ? 's' : ''}`;
+      }
+    });
+  }
+});
+
+socket.on('player_eliminated', data => {
+  const overlay = document.getElementById('elim-overlay');
+  document.getElementById('elim-name').textContent =
+    `${data.eliminated_name} a été éliminé${data.was_undercover ? ' — c\'était l\'undercover !' : ''}`;
+  overlay.classList.add('show');
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    showScreen('screen-game');
+    // Redraw
+    redrawAll();
+  }, 3000);
+});
+
+socket.on('game_over', data => {
+  showScreen('screen-results');
+  const banner = document.getElementById('result-banner');
+  const isWin = data.result === 'civilians_win';
+
+  banner.textContent = isWin ? '🎉 Les civils ont gagné !' : '😈 L\'undercover a gagné !';
+  banner.className = 'result-banner ' + (isWin ? 'win' : 'lose');
+
+  document.getElementById('uc-dot').style.background = data.undercover_color;
+  document.getElementById('uc-name').textContent = data.undercover_name;
+  document.getElementById('word-civilians').textContent = data.word_civilians;
+  document.getElementById('word-undercover').textContent = data.word_undercover;
+
+  // Replay canvas
+  setTimeout(() => {
+    allStrokes = data.strokes || allStrokes;
+    renderReplayCanvas(document.getElementById('result-canvas'), allStrokes);
+
+    // Legend
+    const legend = document.getElementById('result-legend');
+    legend.innerHTML = '';
+    const seen = new Set();
+    for (const s of allStrokes) {
+      if (s.eraser || seen.has(s.player_sid)) continue;
+      seen.add(s.player_sid);
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<div class="legend-dot" style="background:${s.color}"></div><span>${s.nickname}</span>`;
+      legend.appendChild(item);
+    }
+  }, 100);
+
+  // Show replay button for host
+  if (mySid === data.host_sid || isHost) {
+    document.getElementById('play-again-btn').style.display = '';
+  }
+});
+
+socket.on('back_to_lobby', data => {
+  showScreen('screen-lobby');
+  allStrokes = [];
+  myWord = null;
+  isMyTurn = false;
+  document.getElementById('my-word').textContent = '—';
+  renderLobby(data.players, data.host);
+  toast('Retour au salon !');
+});
+
+socket.on('error', data => {
+  toast('❌ ' + data.message);
+});
+</script>
+</body>
+</html>
